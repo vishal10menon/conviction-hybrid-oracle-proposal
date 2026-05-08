@@ -5,6 +5,10 @@
 **Submitted to:** Conviction Markets Request for Builders  
 **Repository:** https://github.com/vishal10menon/conviction-hybrid-oracle-proposal
 
+## Follow-up analysis
+
+- [Failure Modes and Toy Model for Hybrid Agentic-Optimistic Oracles](./failure-modes-and-toy-model.md)
+
 ## Abstract
 
 Conviction Markets seeks to create an on-chain coordination infrastructure in which capital is released only upon verified completion of work. Pure Futarchy-based verification, which uses market price as the oracle, suffers from a fundamental **reflexivity trap**: in low-liquidity or long-tail markets, speculative volatility or adversarial capital can suppress price signals, preventing legitimate builders from receiving payment even after successful delivery. This creates a self-fulfilling failure mode that undermines the protocol’s core thesis.
