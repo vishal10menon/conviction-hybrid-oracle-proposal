@@ -1,16 +1,11 @@
-# Hybrid Agentic-Optimistic Oracle for Conviction Markets: Resolving Reflexivity in Long-Tail Coordination
+# Hybrid Agentic-Optimistic Oracle for Conviction Markets
+
+A proposal for milestone verification in thin or long-tail coordination markets.
 
 **Author:** Vishal Menon (@vmcrypta)  
 **Date:** April 24, 2026, updated May 2026  
 **Submitted to:** Conviction Markets Request for Builders  
 **Repository:** https://github.com/vishal10menon/conviction-hybrid-oracle-proposal
-
-## Follow-up analysis
-
-- [Failure Modes and Toy Model for Hybrid Agentic-Optimistic Oracles](./failure-modes-and-toy-model.md)
-- [Narrow Onchain POC](./narrow-poc.md)
-- To make the first implementation path more concrete, example artifact shapes are included under `/examples`, including a sample semantic contract and a sample reasoning trace.
-
 
 ## TL;DR
 
@@ -20,237 +15,247 @@ The problem is that in thin, early, or long-tail markets, price is often too wea
 
 That creates a reflexivity problem. A builder can do the work, submit valid evidence, and still fail to get paid because the market signal never cleanly catches up to reality.
 
-This repo proposes a **Hybrid Agentic-Optimistic Oracle (HAOO)**. The core idea is to separate:
+This repository proposes a **Hybrid Agentic-Optimistic Oracle (HAOO)**. The core idea is to separate:
 
 - **semantic verification of work**, handled by a verifier agent using a curated semantic contract
 - **economic finality**, handled by an optimistic challenge window and dispute process
 
-This updated version also narrows the idea into a first milestone-gated onchain POC and adds concrete prior art from live oracle systems and recent research. A more detailed implementation path is outlined in [Narrow Onchain POC](./narrow-poc.md).
+The claim is intentionally narrow:
 
-## Abstract
+> For bounded classes of milestone-based work, especially software-verifiable tasks, a semantic verifier plus optimistic challenge layer may outperform price alone as the first-pass verification primitive.
 
-Conviction Markets aims to create an onchain coordination system where capital is released only when work has been verified. Pure Futarchy-style verification, where market price acts as the oracle, runs into a basic problem in low-liquidity or long-tail markets. Speculation, timing mismatches, or adversarial capital can suppress the price signal, which means a builder may complete useful work and still fail to get paid. This weakens the core promise of the protocol.
+This is not a claim to have solved the oracle problem in full. It is a narrower proposal for a more credible milestone-resolution primitive.
 
-This paper proposes a **Hybrid Agentic-Optimistic Oracle (HAOO)**, or "Agent-in-the-Middle" architecture. The design separates **semantic verification of work** from **economic finality**. A verifier agent checks whether submitted work satisfies a curated semantic contract, while an optimistic challenge window gives the broader system a chance to dispute bad assertions before payout. The goal is to turn verification into an auditable process rather than a speculative voting game.
+## The problem
 
-The proposal is designed to plug into Conviction Markets’ reputation, conviction, and curation layers. This updated version also narrows the first implementation to milestone-gated verification for bounded, software-verifiable tasks.
+Conviction Markets wants capital to move when work is actually completed.
 
-## 1. Introduction: The Reflexivity Problem in Futarchy
+That requires a verification primitive. If milestone completion is inferred mainly from market price, the mechanism can break in exactly the cases where coordination markets are hardest:
 
-The central claim of Conviction Markets is that sustained commitment should compound into ownership of outcomes, with capital released only upon verified completion of work. To do that well, the protocol needs a verification primitive that can satisfy three competing constraints:
+- thin liquidity
+- weak price discovery
+- semantically rich work
+- adversarial or distorted sentiment
+- milestones where completion matters more than short-term market expectations
 
-- **Velocity**: it must be fast enough to support machine-speed coordination
-- **Security**: it must resist manipulation, collusion, and weak evidence
-- **Decentralization**: it must avoid collapsing into a centralized review process
+In those settings, price can become a poor proxy for whether the builder actually delivered.
 
-Pure Futarchy, as used in systems like MetaDAO, makes price the oracle. In theory that is elegant. In practice, it breaks down in thin or early markets for at least three reasons:
+This creates a reflexive failure mode:
 
-- **Reflexive veto**: if the market expects failure, price drops, and the builder may fail to get paid even if the work is later completed
-- **Speculative manipulation**: in thin markets, a well-capitalized actor can suppress price even when delivery quality is real
-- **Semantic gap**: price is too coarse to distinguish actual non-delivery from macro conditions, timing noise, or liquidity shocks
+1. the market expects failure  
+2. price moves against the builder  
+3. payout becomes harder or impossible  
+4. the builder is penalized even if the work is later delivered  
+5. the market's expectation becomes self-fulfilling  
 
-These problems are most severe in the "Zero-to-Many" stage, when a market is still early and participation is thin.
+The point is not just that price is noisy. It is that verification itself becomes reflexive.
 
-The point is not just that price is noisy. It is that **verification itself becomes reflexive**. The protocol stops merely observing outcomes and starts affecting whether builders can survive long enough to complete them.
+## The proposal
 
-## 2. The Proposed Primitive: Agent-in-the-Middle (AiM) Architecture
+The proposed primitive is a **Hybrid Agentic-Optimistic Oracle**.
 
-The proposal introduces an **Agent-in-the-Middle** design that places a domain-specific **Verifier Agent** between the builder’s submission and the market’s repricing mechanism. This creates a hybrid system where semantic verification happens first, while finality remains subject to an optimistic challenge process.
+It separates two functions that should not be collapsed into one signal.
 
-### 2.1 Formal Workflow
+### 1. Semantic verification
 
-Let a conviction market be defined by a semantic contract C = (P, E, V), where:
+A verifier evaluates submitted work against a curated milestone contract.
 
-- **P**: problem statement and success criteria  
-- **E**: required evidence schema, such as GitHub commit hash, onchain transaction, or signed attestation  
-- **V**: verification logic manifest  
+That contract defines:
 
-A builder submits a claim (w, π), where w is the work artifact and π is proof of authorship or provenance.
+- **P**: problem statement and success criteria
+- **E**: evidence schema
+- **V**: verification logic manifest
 
-The **Verifier Agent** A_v computes:
+The verifier produces a provisional result such as:
 
-A_v(C, w, π) → (b, τ)
+- `SUCCESS`
+- `FAILURE`
+- `AMBIGUOUS`
 
-where b ∈ {SUCCESS, FAILURE} and τ is a verifiable Proof of Reasoning (PoR) trace.
+It also emits a structured reasoning trace that maps evidence to checks.
 
-This assertion is posted onchain and enters an **Optimistic Liveness Window** L, typically 12 to 48 hours.
+### 2. Economic finality
 
-### 2.2 Optimistic Challenge Game with Reputation Weighting
+The verifier result does not settle immediately.
 
-During L, any participant with sufficient **Conviction-Weighted Stake** w_c, derived from reputation and staked conviction in the relevant market, may challenge the assertion by posting a bond B.
+Instead, the protocol posts a minimal assertion and opens an optimistic challenge window. During that period:
 
-- **Passive path**: if no valid challenge is raised, the assertion is accepted and capital is released according to the milestone tranche
-- **Active path**: if challenged, the case escalates to a **Reputation-Weighted Social Court** or equivalent dispute layer. The court evaluates the reasoning trace, the evidence, and the challenge itself. Incorrect challengers lose their bond. Dishonest agents lose trust and future influence
+- the result is visible
+- the trace is inspectable
+- challengers can dispute
+- settlement remains pending
 
-This keeps the market in the role of monitor rather than first-pass judge.
+If no valid challenge is raised, the result finalizes and capital unlocks.
 
-### 2.3 Security Properties
+If a challenge is raised, the claim enters a slower dispute path.
 
-- **Against reflexivity**: builder payout is tied to semantic verification, not immediate token price
-- **Against collusion**: reputation slashing and challenge bonds raise the cost of bad behavior
-- **Against semantic ambiguity**: the verifier agent checks work against an explicit manifest rather than relying on raw price movement
-- **For auditability**: the reasoning trace provides a structured record that can be inspected and challenged
+The verifier is therefore a high-speed proposer, not a final unquestionable judge.
 
-### 2.4 Milestone Gating
+## Why hybrid?
 
-Milestone gating is the practical center of the design.
+Each existing approach solves only part of the problem.
 
-Even when the verifier agent returns **SUCCESS**, the protocol should not unlock capital immediately. Instead, the result enters a liveness window in which:
+| Approach | Strength | Weakness |
+|---|---|---|
+| Pure price oracle / futarchy | Fast, decentralized signal aggregation | Reflexive, liquidity-sensitive, weak at interpreting complex work |
+| Optimistic oracle only | Strong accountability and challengeability | Weak native semantic interpretation |
+| AI verifier only | Rich semantic reasoning and fast first-pass evaluation | No credible decentralized backstop if wrong |
+| HAOO | Semantic first pass plus challengeable settlement | More system complexity, requires curation and dispute design |
 
-- the assertion is visible
-- the reasoning trace can be reviewed
-- challengers can dispute the verdict
-- capital stays locked until the window closes
+The point of HAOO is not to replace markets, optimistic dispute systems, or human judgment.
 
-This matters because without gating, the verifier agent becomes an unchecked oracle. With gating, the system can move fast by default while staying accountable when something looks wrong.
+The point is to combine:
 
-Put differently, the design is not "AI decides and funds move." It is "AI proposes a structured verification result, and the protocol uses optimistic review before payout."
+- semantic interpretation
+- inspectability
+- challengeability
+- payout gating
 
-## 3. Integration with Conviction Markets Modules
+into a single milestone-resolution flow.
 
-The HAOO primitive is meant to compose directly with core Conviction Markets modules:
+## Why not just use optimism plus curation?
 
-- **Reputation & conviction weighting**: challenge power and verifier selection can be influenced by a participant’s conviction score and historical accuracy
-- **Curation as moat**: high-quality curation now includes not only the problem framing but also the semantic manifest C. Over time, a library of good manifests becomes a reusable coordination asset
-- **Transparent audit trail**: verification becomes a reproducible process rather than a market mood signal
+Because optimism alone does not solve the semantic gap.
 
-## 4. Narrow Onchain POC
+A dispute layer can accept or reject claims, but it does not itself provide a strong first-pass interpretation of milestone evidence.
 
-The full design is broad, but the first implementation should be narrow.
+In this design:
 
-The initial goal is **not** to solve all forms of work verification. The initial goal is to test whether a semantic verifier plus optimistic challenge flow can support milestone-gated capital release for **bounded, software-verifiable tasks**.
+- curation defines what counts as success
+- the verifier evaluates the evidence
+- the optimistic layer allows challenge and override
+- capital moves only if the result survives review
 
-### First milestone classes
+## Why not just trust the verifier?
 
-The first POC should focus on milestones such as:
+Because that would reduce the system to a centralized oracle with better language.
 
-1. GitHub PR merged into a specified branch
-2. contract deployed to a target testnet address
-3. test suite passing under declared conditions
-4. signed artifact or attestation published
-5. deterministic documentation or configuration updates
+The verifier should be:
 
-These tasks are narrow by design. They are structured enough to support semantic contracts without pretending that all work is equally machine-verifiable.
+- fast
+- inspectable
+- challengeable
+- overrideable
 
-### Narrow POC flow
+The goal is not to eliminate social review.
 
-1. **Curator defines milestone**
-   - success criteria
-   - evidence schema
-   - verifier instructions
-   - challenge window settings
+The goal is to reduce how often full social review is needed while preserving a credible path for escalation when the verifier is wrong.
 
-2. **Builder submits work**
-   - repo / PR / commit hash
-   - deployment proof or attestation
-   - optional context
+## Narrow POC
 
-3. **Verifier agent evaluates**
-   - checks submission against the contract
-   - emits SUCCESS / FAILURE / possibly AMBIGUOUS in early prototypes
-   - outputs a structured reasoning trace
+The first implementation path is intentionally narrow.
 
-4. **Onchain assertion**
-   - contract stores milestone ID
-   - result
-   - hash of reasoning trace
-   - timestamp
-   - challenge deadline
+It focuses on **software-verifiable milestones**, because these are bounded enough to support:
 
-5. **Challenge window**
-   - watchers inspect the trace
-   - challengers dispute by bonding capital
-   - dispute escalates if needed
+- structured evidence
+- machine-assisted verification
+- auditable traces
+- meaningful disputes
 
-6. **Settlement**
-   - if undisputed, milestone payment unlocks
-   - if disputed, the case enters slower adjudication
+Examples include:
 
-### What this POC proves
+- PR merged into a specified branch
+- required files modified
+- forbidden paths untouched
+- CI passing at merge time
+- contract deployment matching declared conditions
 
-If successful, the narrow POC would validate that:
+This is not a general-purpose oracle for all work.
 
-- semantic contracts are usable in bounded coordination settings
-- verifier agents can reduce ambiguity in milestone resolution
-- milestone gating protects against over-trusting automation
-- payout can be tied to auditable delivery rather than price movement alone
+It is a bounded test of whether a stronger milestone verification primitive can outperform price alone in a narrow but important class of tasks.
 
-## 5. Prior Art & Evidence
+For the full implementation path, see [narrow-poc.md](./narrow-poc.md).
 
-This proposal is not purely theoretical. Several close analogs already exist.
+## Repository guide
 
-### 5.1 UMA’s Optimistic Truth Bot
+### Core proposal
+- [README.md](./README.md)  
+  Top-level thesis, mechanism design, and positioning
 
-The closest live analog is UMA’s **Optimistic Truth Bot (OTB)**. OTB is a modular system designed to propose answers to UMA’s optimistic oracle with evidence gathering, layered routing, and oversight before final submission. Its architecture includes a router, specialized solvers, and an overseer module that filters and audits outputs.
+### Bounded implementation path
+- [narrow-poc.md](./narrow-poc.md)  
+  First implementation path for software-verifiable milestones
 
-This is directionally very close to HAOO:
-- an agent produces a first-pass semantic resolution
-- an optimistic system handles challenge and economic review
-- humans remain the final safety net
+### Default MVP settings
+- [parameters.md](./parameters.md)  
+  Default settings for liveness windows, bond sizing, verifier outputs, onchain payload, and settlement assumptions
 
-### 5.2 Polymarket + UMA
+### Failure-path analysis
+- [adversarial-case.md](./adversarial-case.md)  
+  Worked example showing how verifier error or incomplete evidence should be handled before payout
 
-Polymarket uses UMA’s optimistic oracle to resolve real-money prediction markets:
-- a proposer submits an outcome
-- a challenge window opens
-- if undisputed, the answer finalizes
-- if disputed, it escalates to UMA’s DVM
+### Follow-up analysis
+- [failure-modes-and-toy-model.md](./failure-modes-and-toy-model.md)  
+  Failure modes and toy model for the hybrid oracle design
 
-This validates the optimistic settlement layer of the HAOO design at real scale. HAOO does not replace this logic. It strengthens the proposal layer by adding structured semantic verification before settlement.
+### Example artifacts
+- [examples/sample-semantic-contract.json](./examples/sample-semantic-contract.json)  
+  Example semantic contract for a bounded software milestone
 
-### 5.3 Hybrid AI-governance oracle research
+- [examples/sample-reasoning-trace.md](./examples/sample-reasoning-trace.md)  
+  Example verifier output showing checks, evidence, and final judgment
 
-Recent oracle research increasingly argues that AI should function as a **complementary layer of inference and filtering**, not a replacement for trust assumptions. Hybrid systems that combine AI, staking/slashing, governance escalation, and human review are no longer just hypothetical.
+## What success looks like
 
-### 5.4 What is new here
+This proposal should not be judged by whether it solves the entire oracle problem.
 
-The novelty here is not simply "AI + oracle."
+It should be judged by narrower criteria:
 
-The novelty is applying a hybrid semantic-plus-optimistic structure specifically to **milestone-gated capital release in reflexive coordination markets**, where the core failure is not just truth reporting but payout under conditions where price is a weak proxy for delivery.
+- can milestones be encoded clearly enough for machine-assisted evaluation?
+- can evidence be ingested and normalized reliably?
+- can the verifier emit legible, auditable traces?
+- can challenge windows catch bad or ambiguous outputs before payout?
+- can settlement remain usable without forcing every case into slow governance?
 
-## 6. Threat Model and Incentive Compatibility
+If the answer is yes, then Conviction Markets gets a more credible milestone-resolution primitive for long-tail coordination.
 
-**Primary threats**:
-- adversarial builder submits low-quality work that passes the agent
-- adversarial challenger raises frivolous disputes to delay valid payout
-- verifier agent is compromised or systematically biased
+## Scope
 
-**Mitigations**:
-- bond requirements and reputation slashing make bad behavior expensive
-- the reasoning trace makes agent decisions legible and auditable
-- curation-defined manifests reduce ambiguity in what counts as success
-- milestone gating ensures positive agent outputs are never final without a chance to challenge
+### In scope
 
-**Incentive alignment**:
-- builders are rewarded for producing verifiable work
-- challengers are rewarded only when they challenge with strong evidence
-- the protocol improves as better curation produces better manifests, which support better agents and cleaner markets
+- milestone-gated resolution for bounded classes of work
+- software-verifiable tasks as the first proving ground
+- semantic contracts
+- verifier-generated reasoning traces
+- optimistic challenge windows
+- minimal onchain assertion and payout gating
 
-## 7. Comparison to Existing Approaches
+### Not in scope
 
-- **Pure Futarchy (MetaDAO)**: elegant but vulnerable to reflexivity in thin markets
-- **Optimistic Oracles (UMA)**: strong on economic finality, but weaker on first-pass semantic interpretation
-- **Pure AI Oracles**: fast, but weak on accountability and decentralized backstop
+- a universal oracle for all forms of work
+- a final token-economic design
+- a fully permissionless verifier market from day one
+- proof that arbitrary real-world labor can be reduced to binary machine verdicts
+- a complete final dispute court architecture
 
-The HAOO model tries to combine the strengths of all three while addressing their most obvious weaknesses.
+Narrowness is a feature here.
 
-## 8. Conclusion and Next Steps
+The point is to test a falsifiable mechanism, not to overclaim a finished system.
 
-The Hybrid Agentic-Optimistic Oracle addresses the reflexivity problem in long-tail conviction markets by turning verification into an auditable process grounded in curated contracts rather than short-term price movement.
+## Why this matters for Conviction Markets
 
-Its purpose is simple: protect builders from weak market signals without giving up decentralized accountability.
+If Conviction Markets wants capital to move when work is actually verified, then milestone resolution cannot rely only on market price in environments where price is thin, noisy, or strategically distortable.
 
-### Practical next steps
+This repository proposes a more credible alternative:
 
-Rather than jumping straight into maximal design complexity, the next steps should be:
+- curation defines the contract
+- the verifier performs first-pass semantic evaluation
+- the optimistic layer preserves accountability
+- capital moves only after provisional truth survives challenge
 
-1. formalize a narrow semantic contract schema
-2. build an offchain verifier for software-verifiable milestones
-3. deploy a minimal onchain assertion contract on testnet
-4. test milestone gating and challenge flow in a bounded environment
-5. expand only after the primitive is validated
+That is the mechanism claim.
 
-### Open questions
+## Practical next steps
+
+A sensible implementation sequence is:
+
+1. formalize milestone templates and evidence schemas  
+2. build an offchain verifier for software-verifiable milestones  
+3. deploy a minimal onchain assertion contract on testnet  
+4. test liveness windows, challenge flow, and payout gating  
+5. refine parameters based on error cases, dispute frequency, and settlement latency  
+
+## Open questions
 
 - How strict should semantic contracts be without becoming brittle?
 - When should ambiguity be surfaced rather than forced into binary resolution?
@@ -258,19 +263,19 @@ Rather than jumping straight into maximal design complexity, the next steps shou
 - Which classes of work should never be verifier-agent-first?
 - What incentive design best deters spam challenges and bad proposals?
 
-This design is submitted as an open contribution. I am available to iterate on the architecture, contribute implementation design, or explore this as a research sprint or grant-funded collaboration.
+## Bottom line
 
-## References
+This repository proposes a narrower alternative to pure price-based milestone verification.
 
-- MetaDAO Futarchy Design
-- UMA Optimistic Oracle Protocol
-- UMA, *AI Is Helping Us Find the Truth. Here's How.*  
-  https://blog.uma.xyz/articles/ai-is-helping-us-find-the-truth
-- UMA, *Can AI Agents Enhance the Optimistic Oracle?*  
-  https://blog.uma.xyz/articles/experiment-can-ai-agents-enhance-uma-oracle
-- UMA, *Inside UMA's Optimistic Truth Bot*  
-  https://blog.uma.xyz/articles/inside-umas-optimistic-truth-bot
-- Giulio Caldarelli, *Can Artificial Intelligence Solve the Blockchain Oracle Problem? Unpacking the Challenges and Possibilities*  
-  https://doi.org/10.3389/fbloc.2025.1682623
-- Kleros Decentralized Court
-- Conviction Markets Whitepaper (2026)
+Instead of asking price to do all interpretive work, it separates:
+
+- semantic verification of milestone completion
+- economic finality through optimistic, challengeable settlement
+
+If this bounded approach works for software-verifiable tasks, it could provide a stronger verification primitive for long-tail coordination markets.
+
+## Contact
+
+This is an open contribution.
+
+If this direction is useful, I would be happy to iterate on the architecture, tighten the bounded POC, or explore an implementation-oriented research sprint around milestone verification for Conviction Markets.
