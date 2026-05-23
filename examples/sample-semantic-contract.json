@@ -1,0 +1,62 @@
+{
+  "milestoneId": "cm-demo-001",
+  "marketId": "conviction-market-demo-01",
+  "title": "Merge bounded verification PR into main",
+  "description": "Implement and merge a milestone-gated assertion flow into the demo repository.",
+  "curator": {
+    "id": "curator-demo-01",
+    "role": "Curator"
+  },
+  "deadline": "2026-06-15T23:59:59Z",
+  "semanticContract": {
+    "P": {
+      "problemStatement": "Ship a bounded implementation of the assertion gate flow.",
+      "successCriteria": [
+        "PR #142 is merged into main",
+        "contracts/AssertionGate.sol is modified",
+        "README.md is modified",
+        "CI passes on the merge commit",
+        "No files inside tokenomics/ are modified",
+        "Merge occurs before the deadline"
+      ]
+    },
+    "E": {
+      "requiredEvidence": [
+        "repositoryUrl",
+        "pullRequestUrl",
+        "mergeCommitHash",
+        "ciRunUrl",
+        "mergeTimestamp"
+      ]
+    },
+    "V": {
+      "checks": [
+        "confirm target branch is main",
+        "confirm PR state is merged",
+        "confirm required files modified",
+        "confirm forbidden files untouched",
+        "confirm CI run status is success",
+        "confirm merge timestamp precedes deadline"
+      ],
+      "ambiguityTriggers": [
+        "missing CI record",
+        "branch mismatch",
+        "incomplete file-change metadata",
+        "merge timestamp unavailable"
+      ],
+      "failFastConditions": [
+        "PR not merged",
+        "required file missing",
+        "forbidden file modified",
+        "CI failed",
+        "deadline missed"
+      ]
+    }
+  },
+  "challengeParameters": {
+    "livenessPeriodHours": 24,
+    "bondRequirement": "100 USDC equivalent",
+    "eligibleChallengers": "open-or-reputation-gated depending on deployment stage",
+    "disputePath": "reputation-weighted adjudication layer"
+  }
+}
