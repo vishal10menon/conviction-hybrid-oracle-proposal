@@ -9,6 +9,8 @@
 
 - [Failure Modes and Toy Model for Hybrid Agentic-Optimistic Oracles](./failure-modes-and-toy-model.md)
 - [Narrow Onchain POC](./narrow-poc.md)
+- To make the first implementation path more concrete, example artifact shapes are included under `/examples`, including a sample semantic contract and a sample reasoning trace.
+
 
 ## TL;DR
 
