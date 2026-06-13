@@ -7,6 +7,41 @@ A proposal for milestone verification in thin or long-tail coordination markets.
 **Submitted to:** Conviction Markets Request for Builders  
 **Repository:** https://github.com/vishal10menon/conviction-hybrid-oracle-proposal
 
+## MVP Implementation
+
+This repository contains both the original proposal and a working prototype of the core verification pipeline.
+
+### Project Structure
+
+src/
+verifier_agent/       # Agent that checks submissions against contracts
+agent.py            # Core VerifierAgent class
+proof_of_resolution.py
+semantic_contract/    # Manifest parser and validator
+parser.py           # SemanticContract class
+validator.py
+challenge_game/       # Optimistic challenge window logic
+window.py           # ChallengeWindow class
+resolver.py
+reputation/           # Reputation-weighted scoring (pending token design)
+weighting.py
+utils/
+config.py
+contracts/              # Solidity or on-chain components (future)
+tests/
+examples/
+sample_manifest.json
+
+
+### Current Status
+
+- [x] Verifier Agent skeleton with criterion-based checks
+- [x] Semantic Contract parser with validation
+- [x] Optimistic Challenge Window with expiry logic
+- [ ] Reputation-weighted scoring (awaiting token design)
+- [ ] On-chain integration
+- [ ] Full test coverage
+
 ## TL;DR
 
 Conviction Markets only works if capital can move when work is actually complete.

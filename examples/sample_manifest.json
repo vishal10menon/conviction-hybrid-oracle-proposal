@@ -1,0 +1,26 @@
+{
+  "manifest_id": "manifest-001",
+  "domain": "defi-frontend",
+  "bounty_id": "bounty-2026-06-001",
+  "version": "0.1",
+  "title": "Build a token swap UI with slippage protection",
+  "criteria": [
+    {
+      "id": "crit-1",
+      "type": "file_exists",
+      "description": "Repository contains src/components/SwapForm.tsx",
+      "expected_path": "SwapForm.tsx"
+    },
+    {
+      "id": "crit-2",
+      "type": "code_output",
+      "description": "npm run test passes with 0 failures",
+      "expected_output": "0 failures"
+    },
+    {
+      "id": "crit-3",
+      "type": "manual",
+      "description": "UI renders correctly on mobile viewport"
+    }
+  ]
+}
