@@ -11,26 +11,36 @@ A proposal for milestone verification in thin or long-tail coordination markets.
 
 This repository contains both the original proposal and a working prototype of the core verification pipeline.
 
-### Project Structure
-
-src/
-verifier_agent/       # Agent that checks submissions against contracts
-agent.py            # Core VerifierAgent class
-proof_of_resolution.py
-semantic_contract/    # Manifest parser and validator
-parser.py           # SemanticContract class
-validator.py
-challenge_game/       # Optimistic challenge window logic
-window.py           # ChallengeWindow class
-resolver.py
-reputation/           # Reputation-weighted scoring (pending token design)
-weighting.py
-utils/
-config.py
-contracts/              # Solidity or on-chain components (future)
-tests/
-examples/
-sample_manifest.json
+Project Structure
+├── src/
+│   ├── verifier_agent/
+│   │   ├── agent.py                  # Core VerifierAgent class
+│   │   └── proof_of_resolution.py    # Submission verification + resolution proofs
+│   │
+│   ├── semantic_contract/
+│   │   ├── parser.py                 # Manifest parser
+│   │   └── validator.py              # SemanticContract validation logic
+│   │
+│   ├── challenge_game/
+│   │   ├── window.py                 # ChallengeWindow class
+│   │   └── resolver.py               # Optimistic challenge resolution
+│   │
+│   ├── reputation/
+│   │   └── weighting.py              # Reputation-weighted scoring (token design pending)
+│   │
+│   └── utils/
+│       └── config.py                 # Shared configuration
+│
+├── contracts/                        # Solidity / on-chain components (future expansion)
+│
+├── tests/                            # Unit and integration tests
+│
+├── examples/
+│   └── sample_manifest.json          # Example Semantic Contract manifest
+│
+├── README.md                         # Project documentation
+├── requirements.txt                  # Python dependencies
+└── .gitignore
 
 
 ### Current Status

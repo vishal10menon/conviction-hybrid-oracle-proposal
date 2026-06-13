@@ -30,7 +30,7 @@ class ChallengeWindow:
         self.opened_at = datetime.utcnow()
         self.closes_at = self.opened_at + timedelta(hours=window_hours)
         self.status = ChallengeStatus.OPEN
-        self.challenge: Optional[dict] = None
+        self.active_challenge: Optional[dict] = None
 
     def challenge(self, challenger_id: str, reason: str, bond_amount: float) -> dict:
         """Raise a challenge against the verification."""
@@ -41,14 +41,14 @@ class ChallengeWindow:
             self.status = ChallengeStatus.EXPIRED
             return {"error": "Challenge window has expired"}
 
-        self.challenge = {
+        self.active_challenge = {
             "challenger_id": challenger_id,
             "reason": reason,
             "bond_amount": bond_amount,
             "timestamp": datetime.utcnow().isoformat(),
         }
         self.status = ChallengeStatus.CHALLENGED
-        return {"status": "challenged", "details": self.challenge}
+        return {"status": "challenged", "details": self.active_challenge}
 
     def resolve(self, ruling: str) -> dict:
         """Resolve the challenge. Ruling: 'uphold' or 'overturn'."""
@@ -59,7 +59,7 @@ class ChallengeWindow:
         return {
             "status": "resolved",
             "ruling": ruling,
-            "bond_slashed": ruling == "uphold" if self.challenge else False,
+            "bond_slashed": ruling == "uphold" if self.active_challenge else False,
             "capital_released": ruling == "uphold",
         }
 
