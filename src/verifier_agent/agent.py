@@ -8,6 +8,8 @@ import json
 from datetime import datetime
 from typing import Optional
 
+from src.verifier_agent.llm_judge import LLMJudge
+
 
 class VerifierAgent:
     """
@@ -15,10 +17,18 @@ class VerifierAgent:
     Returns a structured verification report.
     """
 
-    def __init__(self, domain: str, contract_path: str):
+    def __init__(
+        self,
+        domain: str,
+        contract_path: str,
+        use_llm: bool = False,
+        llm_model: str = "gpt-4o-mini",
+    ):
         self.domain = domain
         self.contract_path = contract_path
         self.contract = self._load_contract(contract_path)
+        self.use_llm = use_llm
+        self.llm_judge = LLMJudge(model=llm_model) if use_llm else None
 
     def _load_contract(self, path: str) -> dict:
         with open(path, "r") as f:
@@ -50,20 +60,22 @@ class VerifierAgent:
 
     def _check_criterion(self, criterion: dict, submission: dict) -> dict:
         """Check a single criterion against the submission."""
-        criterion_id = criterion.get("id", "unknown")
         criterion_type = criterion.get("type", "manual")
+
+        if criterion_type == "manual" and self.use_llm and self.llm_judge:
+            return self.llm_judge.evaluate(criterion, submission, self.contract)
 
         if criterion_type == "file_exists":
             passed = criterion.get("expected_path", "") in str(submission.get("files", []))
         elif criterion_type == "code_output":
             passed = criterion.get("expected_output", "") in str(submission.get("outputs", []))
         elif criterion_type == "manual":
-            passed = False  # Requires human attestation
+            passed = False
         else:
             passed = False
 
         return {
-            "criterion_id": criterion_id,
+            "criterion_id": criterion.get("id", "unknown"),
             "type": criterion_type,
             "passed": passed,
             "details": criterion.get("description", ""),
