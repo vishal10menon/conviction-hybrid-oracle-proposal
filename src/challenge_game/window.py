@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional
 
+from src.reputation.weighting import ReputationLedger
+
 
 class ChallengeStatus(Enum):
     OPEN = "open"
@@ -23,14 +25,21 @@ class ChallengeWindow:
     """
 
     DEFAULT_WINDOW_HOURS = 24
+    BASE_BOND_REQUIREMENT = 100.0
 
-    def __init__(self, verification_report: dict, window_hours: int = DEFAULT_WINDOW_HOURS):
+    def __init__(
+        self,
+        verification_report: dict,
+        window_hours: int = DEFAULT_WINDOW_HOURS,
+        reputation_ledger: Optional[ReputationLedger] = None,
+    ):
         self.verification_report = verification_report
         self.window_hours = window_hours
         self.opened_at = datetime.utcnow()
         self.closes_at = self.opened_at + timedelta(hours=window_hours)
         self.status = ChallengeStatus.OPEN
         self.active_challenge: Optional[dict] = None
+        self.reputation_ledger = reputation_ledger or ReputationLedger()
 
     def challenge(self, challenger_id: str, reason: str, bond_amount: float) -> dict:
         """Raise a challenge against the verification."""
@@ -41,10 +50,21 @@ class ChallengeWindow:
             self.status = ChallengeStatus.EXPIRED
             return {"error": "Challenge window has expired"}
 
+        required_bond = self.reputation_ledger.get_bond_requirement(
+            challenger_id, self.BASE_BOND_REQUIREMENT
+        )
+        if bond_amount < required_bond:
+            return {
+                "error": f"Bond too low. Required: {required_bond:.1f}, provided: {bond_amount:.1f}"
+            }
+
+        weight = self.reputation_ledger.get_challenge_weight(challenger_id)
+
         self.active_challenge = {
             "challenger_id": challenger_id,
             "reason": reason,
             "bond_amount": bond_amount,
+            "challenge_weight": weight,
             "timestamp": datetime.utcnow().isoformat(),
         }
         self.status = ChallengeStatus.CHALLENGED
@@ -55,11 +75,22 @@ class ChallengeWindow:
         if self.status != ChallengeStatus.CHALLENGED:
             return {"error": "No active challenge to resolve"}
 
+        challenger_id = self.active_challenge["challenger_id"]
+
+        if ruling == "uphold":
+            self.reputation_ledger.record_event(
+                challenger_id, "challenge_success", {"bond": self.active_challenge["bond_amount"]}
+            )
+        elif ruling == "overturn":
+            self.reputation_ledger.record_event(
+                challenger_id, "challenge_failure", {"bond": self.active_challenge["bond_amount"]}
+            )
+
         self.status = ChallengeStatus.RESOLVED
         return {
             "status": "resolved",
             "ruling": ruling,
-            "bond_slashed": ruling == "uphold" if self.active_challenge else False,
+            "bond_slashed": ruling == "uphold",
             "capital_released": ruling == "uphold",
         }
 
