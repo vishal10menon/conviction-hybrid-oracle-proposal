@@ -1,0 +1,25 @@
+{
+  "manifest_id": "haoo-webhook-test-001",
+  "domain": "github-webhook",
+  "bounty_id": "haoo-mvp-test",
+  "version": "0.1",
+  "title": "HAOO webhook integration test",
+  "required_files": [
+    "webhook-test.txt"
+  ],
+  "deadline": null,
+  "criteria": [
+    {
+      "id": "crit-1",
+      "type": "file_exists",
+      "description": "The test pull request contains the webhook test file",
+      "expected_path": "webhook-test.txt"
+    },
+    {
+      "id": "crit-2",
+      "type": "code_output",
+      "description": "The GitHub Actions test job passes",
+      "expected_output": "success"
+    }
+  ]
+}
