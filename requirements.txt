@@ -1,1 +1,5 @@
-pytest>=7.0
+requests
+pytest
+flask>=3.0.0
+gunicorn>=21.2.0
+python-dotenv>=1.0.0
