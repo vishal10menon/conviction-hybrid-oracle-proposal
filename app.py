@@ -3,7 +3,7 @@ import hmac
 import hashlib
 import traceback
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 
 from src.github_verifier.pipeline import VerificationPipeline
 from src.github_verifier.github_checks import GitHubChecker
@@ -15,6 +15,7 @@ WEBHOOK_SECRET = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
 
 pipeline = VerificationPipeline()
 github = GitHubChecker()
+last_report = None
 
 
 def verify_signature(payload, signature):
@@ -36,14 +37,24 @@ def health():
         "status": "ok",
         "service": "HAOO verification webhook",
     })
+@app.get("/demo")
+def demo():
+    return render_template(
+        "demo.html",
+        report=last_report,
+    )
 
 
 @app.post("/webhook")
 def webhook():
+    global last_report
+
     signature = request.headers.get("X-Hub-Signature-256", "")
 
     if not verify_signature(request.data, signature):
-        return jsonify({"error": "Invalid webhook signature"}), 401
+        return jsonify({
+            "error": "Invalid webhook signature"
+        }), 401
 
     event = request.headers.get("X-GitHub-Event", "")
 
@@ -80,6 +91,8 @@ def webhook():
             ),
         )
 
+        last_report = report
+
         return jsonify({
             "status": "verified",
             "pr": f"#{pr_number}",
@@ -88,10 +101,10 @@ def webhook():
 
     except Exception as error:
         traceback.print_exc()
+
         return jsonify({
             "error": str(error),
         }), 500
-
 
 
 def format_comment(report):
