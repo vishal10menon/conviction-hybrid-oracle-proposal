@@ -1,1 +1,156 @@
-https://web-production-71175.up.railway.app/
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HAOO Verification Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+            font-family: Arial, sans-serif;
+        }
+
+        main {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .card {
+            margin: 20px 0;
+            padding: 24px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+        }
+
+        .online {
+            color: #4ade80;
+        }
+
+        .pass {
+            color: #4ade80;
+        }
+
+        .fail {
+            color: #f87171;
+        }
+
+        .waiting {
+            color: #facc15;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #475569;
+            text-align: left;
+        }
+
+        a {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>HAOO Verification Dashboard</h1>
+
+        <section class="card">
+            <h2 class="online">Service online</h2>
+            <p>Hybrid Agentic-Optimistic Oracle webhook is running.</p>
+            <p>
+                <a href="/" target="_blank">View health endpoint</a>
+            </p>
+        </section>
+
+        {% if report %}
+            <section class="card">
+                {% if report.all_passed %}
+                    <h2 class="pass">Verification passed</h2>
+                {% else %}
+                    <h2 class="fail">Verification failed</h2>
+                {% endif %}
+
+                <p>Repository: {{ report.repo }}</p>
+                <p>
+                    Pull request:
+                    <a
+                        href="https://github.com/{{ report.repo }}/pull/{{ report.pr_number }}"
+                        target="_blank"
+                    >
+                        #{{ report.pr_number }}
+                    </a>
+                </p>
+            </section>
+
+            <section class="card">
+                <h2>GitHub checks</h2>
+
+                <table>
+                    <tr>
+                        <th>Check</th>
+                        <th>Status</th>
+                        <th>Details</th>
+                    </tr>
+
+                    {% for check in report.github_checks %}
+                    <tr>
+                        <td>{{ check.criterion_id }}</td>
+                        <td>
+                            {% if check.passed %}
+                                <span class="pass">PASS</span>
+                            {% else %}
+                                <span class="fail">FAIL</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ check.details }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </section>
+
+            <section class="card">
+                <h2>Agent checks</h2>
+
+                <table>
+                    <tr>
+                        <th>Check</th>
+                        <th>Status</th>
+                        <th>Details</th>
+                    </tr>
+
+                    {% for check in report.agent_checks %}
+                    <tr>
+                        <td>{{ check.criterion_id }}</td>
+                        <td>
+                            {% if check.passed %}
+                                <span class="pass">PASS</span>
+                            {% else %}
+                                <span class="fail">FAIL</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ check.details }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </section>
+        {% else %}
+            <section class="card">
+                <h2 class="waiting">Waiting for a verification</h2>
+                <p>
+                    Open or update a GitHub pull request to populate the latest
+                    verification report.
+                </p>
+            </section>
+        {% endif %}
+    </main>
+</body>
+</html>
