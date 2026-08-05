@@ -74,16 +74,10 @@ def webhook():
             owner,
             repo_name,
             pr_number,
-            "examples/sample_manifest.json",
-        )
-
-        comment = format_comment(report)
-
-        github.post_comment(
-            owner,
-            repo_name,
-            pr_number,
-            comment,
+            os.environ.get(
+                "HAOO_MANIFEST_PATH",
+                "examples/webhook_test_manifest.json",
+            ),
         )
 
         return jsonify({
@@ -97,6 +91,7 @@ def webhook():
         return jsonify({
             "error": str(error),
         }), 500
+
 
 
 def format_comment(report):
